@@ -5,8 +5,20 @@ require "yaml"
 config = YAML.load_file("ghbot.yaml")
 client = Octokit::Client.new(config["credentials"] || {})
 
+def bot_comments client, repo_name, pr
+    client.issue_comments(repo_name, pr).reject {|c| c[:body].strip.match(/[*]CFME QE Bot[*]$/).nil? }
+end
+
 def get_lint_comments_hashes client, repo_name, pr
     client.issue_comments(repo_name, pr).map(&:body).map {|c| c.strip.match(/^Lint report for commit ([a-fA-F0-9]+):/)} .reject {|h| h.nil?} .map {|c| c[1]}
+end
+
+def remove_old_lint_comments client, repo_name, pr
+    bot_comments(client, repo_name, pr).reject {|c| c[:body].strip.match(/^Lint report for commit ([a-fA-F0-9]+):/).nil? } .each { |comment| client.delete_comment repo_name, comment.id }
+end
+
+def remove_old_rebase_comments client, repo_name, pr
+    bot_comments(client, repo_name, pr).reject {|c| c[:body].strip.match(/^Would you mind rebasing this Pull Request against latest master, please/).nil? } .each { |comment| client.delete_comment repo_name, comment.id }
 end
 
 (config["repositories"] || {}).each do |repo_name, repo_data|
@@ -44,6 +56,7 @@ end
                 if pr_labels.include? needs_rebase_label
                     puts "   remove '#{needs_rebase_label}' from #{pull_request.number}"
                     client.remove_label repo_name, pull_request.number, needs_rebase_label
+                    remove_old_rebase_comments client, repo_name, pull_request.number
                 end
             else
                 puts "  #{pull_request.number} is not mergeable"
@@ -76,6 +89,7 @@ end
 
                 unless linted.include? pull_request.head.sha
                     puts "Adding lint comment for #{pull_request.head.sha}"
+                    remove_old_lint_comments client, repo_name, pull_request.number
                     client.add_comment repo_name, pull_request.number, "Lint report for commit #{pull_request.head.sha}:\n:godmode: All seems good! :cake: :punch: :cookie: \n*CFME QE Bot*"
                 end
             else
@@ -89,6 +103,7 @@ end
                 end
                 unless linted.include? pull_request.head.sha
                     puts "Adding lint comment for #{pull_request.head.sha}"
+                    remove_old_lint_comments client, repo_name, pull_request.number
                     client.add_comment repo_name, pull_request.number, "Lint report for commit #{pull_request.head.sha}:\n:hurtrealbad: There were some flake issues that need to be resolved in order to merge the pull request:\n```\n#{result.strip}\n```\n*CFME QE Bot*"
                 end
             end
