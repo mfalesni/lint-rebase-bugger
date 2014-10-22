@@ -27,6 +27,7 @@ end
     labels = client.labels(repo_name).map { |lbl| lbl[:name] }
     needs_rebase_label = repo_data["needs_rebase"]
     wip_label = repo_data["wip"]
+    wiptest_label = repo_data["wiptest"]
     flake = repo_data["flake"]
     # Exctract data for flaking
     unless flake.nil?
@@ -122,6 +123,22 @@ end
             if pr_labels.include? wip_label
                 puts "   remove '#{wip_label}' from #{pull_request.number}"
                 client.remove_label repo_name, pull_request.number, wip_label
+            end
+        end
+
+        if wiptest_label
+            if title.include? "[wiptest]"
+                puts "  #{pull_request.number} is WIPTEST"
+                unless pr_labels.include? wiptest_label
+                    puts "   add '#{wiptest_label}' from #{pull_request.number}"
+                    client.add_labels_to_an_issue repo_name, pull_request.number, [wiptest_label]
+                end
+            else
+                puts "  #{pull_request.number} is not WIPTEST"
+                if pr_labels.include? wiptest_label
+                    puts "   remove '#{wiptest_label}' from #{pull_request.number}"
+                    client.remove_label repo_name, pull_request.number, wiptest_label
+                end
             end
         end
     end
