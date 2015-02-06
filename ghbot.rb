@@ -21,6 +21,10 @@ def remove_old_rebase_comments client, repo_name, pr
     bot_comments(client, repo_name, pr).reject {|c| c[:body].strip.match(/^Would you mind rebasing this Pull Request against latest master, please/).nil? } .each { |comment| client.delete_comment repo_name, comment.id }
 end
 
+def has_req_comment client, repo_name, pr
+    (bot_comments(client, repo_name, pr).map {|c| c[:body].strip.match(/^Requirements have changed/)} .reject {|h| h.nil?} .length) > 0
+end
+
 (config["repositories"] || {}).each do |repo_name, repo_data|
     puts "Processing repository #{repo_name} ->"
     repo = client.repository repo_name
@@ -139,6 +143,16 @@ end
                     puts "   remove '#{wiptest_label}' from #{pull_request.number}"
                     client.remove_label repo_name, pull_request.number, wiptest_label
                 end
+            end
+        end
+
+        # requirements.txt change
+        files = client.pull_request_files repo_name, pull_request.number, :per_page => 1000
+        if files.map(&:filename).include? "requirements.txt"
+            # requirements changed
+            if ! has_req_comment client, repo_name, pull_request.number
+                puts "   add req comment to  #{pull_request.number}"
+                client.add_comment repo_name, pull_request.number, "Requirements have changed. @seandst , @psav ?\n*CFME QE Bot*"
             end
         end
     end
