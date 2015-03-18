@@ -69,7 +69,7 @@ end
                     puts "   add '#{needs_rebase_label}' from #{pull_request.number}"
                     client.add_labels_to_an_issue repo_name, pull_request.number, [needs_rebase_label]
                     # Comment "Would you mind rebasing this Pull Request against latest master, please?"
-                    client.add_comment repo_name, pull_request.number, "Would you mind rebasing this Pull Request against latest master, please?\n*CFME QE Bot*"
+                    client.add_comment repo_name, pull_request.number, "Would you mind rebasing this Pull Request against latest master, please? :trollface:\n*CFME QE Bot*"
                 end
             end
         end
@@ -109,7 +109,7 @@ end
                 unless linted.include? pull_request.head.sha
                     puts "Adding lint comment for #{pull_request.head.sha}"
                     remove_old_lint_comments client, repo_name, pull_request.number
-                    client.add_comment repo_name, pull_request.number, "Lint report for commit #{pull_request.head.sha}:\n:hurtrealbad: There were some flake issues that need to be resolved in order to merge the pull request:\n```\n#{result.strip}\n```\n*CFME QE Bot*"
+                    client.add_comment repo_name, pull_request.number, "Lint report for commit #{pull_request.head.sha}:\n:hurtrealbad: There were some flake issues that need to be resolved in order to merge the pull request:\n```\n#{result.strip}\n```\n:trollface:\n*CFME QE Bot*"
                 end
             end
         end
