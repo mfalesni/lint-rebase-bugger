@@ -150,10 +150,10 @@ end
         files = client.pull_request_files repo_name, pull_request.number, :per_page => 1000
         if files.map(&:filename).include? "requirements.txt"
             # requirements changed
-            if ! has_req_comment client, repo_name, pull_request.number
-                puts "   add req comment to  #{pull_request.number}"
-                client.add_comment repo_name, pull_request.number, "Requirements have changed. @seandst , @psav ?\n*CFME QE Bot*"
-            end
+            #if ! has_req_comment client, repo_name, pull_request.number
+            #    puts "   add req comment to  #{pull_request.number}"
+            #    client.add_comment repo_name, pull_request.number, "Requirements have changed. @seandst , @psav ?\n*CFME QE Bot*"
+            #end
         end
     end
 end
