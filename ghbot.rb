@@ -30,6 +30,7 @@ end
     repo = client.repository repo_name
     labels = client.labels(repo_name).map { |lbl| lbl[:name] }
     needs_rebase_label = repo_data["needs_rebase"]
+    doc_label = repo_data["doc"]
     wip_label = repo_data["wip"]
     wiptest_label = repo_data["wiptest"]
     flake = repo_data["flake"]
@@ -127,6 +128,20 @@ end
             if pr_labels.include? wip_label
                 puts "   remove '#{wip_label}' from #{pull_request.number}"
                 client.remove_label repo_name, pull_request.number, wip_label
+            end
+        end
+
+        if title.include? "[doc]"
+            puts "  #{pull_request.number} is with documentation"
+            unless pr_labels.include? doc_label
+                puts "   add '#{doc_label}' from #{pull_request.number}"
+                client.add_labels_to_an_issue repo_name, pull_request.number, [doc_label]
+            end
+        else
+            puts "  #{pull_request.number} is not with documentation"
+            if pr_labels.include? doc_label
+                puts "   remove '#{doc_label}' from #{pull_request.number}"
+                client.remove_label repo_name, pull_request.number, doc_label
             end
         end
 
