@@ -9,6 +9,25 @@ def bot_comments client, repo_name, pr
     client.issue_comments(repo_name, pr).reject {|c| c[:body].strip.match(/[*]CFME QE Bot[*]$/).nil? }
 end
 
+def landscape_comments client, repo_name, pr
+    client.issue_comments(repo_name, pr).reject {|c| c[:body].strip.match(/\[Code Health\]/).nil? }
+end
+
+def old_landscape_comments client, repo_name, pr
+    comments = landscape_comments client, repo_name, pr
+    if comments.length <= 1
+        []  # There is no comment or only one, which we obviously don't want to delete
+    else
+        comments.take(comments.length - 1)
+    end
+end
+
+def remove_old_landscape_comments client, repo_name, pr
+    old_landscape_comments(client, repo_name, pr).each do |comment|
+        client.delete_comment repo_name, comment.id
+    end.length
+end
+
 def get_lint_comments_hashes client, repo_name, pr
     client.issue_comments(repo_name, pr).map(&:body).map {|c| c.strip.match(/^Lint report for commit ([a-fA-F0-9]+):/)} .reject {|h| h.nil?} .map {|c| c[1]}
 end
@@ -170,5 +189,9 @@ end
             #    client.add_comment repo_name, pull_request.number, "Requirements have changed. @seandst , @psav ?\n*CFME QE Bot*"
             #end
         end
+
+        # Remove old landscape comments
+        n_comments = remove_old_landscape_comments repo_name, pull_request.number
+        puts "Removed #{n_comments} landscape.io comments"
     end
 end
