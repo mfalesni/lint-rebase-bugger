@@ -191,7 +191,7 @@ end
         end
 
         # Remove old landscape comments
-        n_comments = remove_old_landscape_comments repo_name, pull_request.number
+        n_comments = remove_old_landscape_comments client, repo_name, pull_request.number
         puts "Removed #{n_comments} landscape.io comments"
     end
 end
