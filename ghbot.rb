@@ -2,6 +2,7 @@
 require "octokit"
 require "yaml"
 
+Octokit.auto_paginate = true
 config = YAML.load_file("ghbot.yaml")
 client = Octokit::Client.new(config["credentials"] || {})
 
@@ -135,7 +136,7 @@ end
         end
         # WIP'ing (ordinary people do not have access to the labels)
         title = pull_request[:title].downcase.gsub /\s+/, " "
-        
+
         if title.include? "[wip]"
             puts "  #{pull_request.number} is WIP"
             unless pr_labels.include? wip_label
