@@ -11,6 +11,11 @@ ruby -e "require 'octokit'" >/dev/null 2>&1 || {
     exit 2
 }
 
+ruby -e "require 'git_diff_parser'" >/dev/null 2>&1 || {
+    echo "Please install git_diff_parser gem"
+    exit 2
+}
+
 if [ ! -e ./ghbot_ve/bin/activate ] ;
 then
     virtualenv ghbot_ve

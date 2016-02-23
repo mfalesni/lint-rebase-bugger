@@ -159,7 +159,7 @@ end
                         icon = ''
                         icon = ':red_circle:' if flake_code =~ /^E/  # Error
                         icon = ':large_orange_diamond:' if flake_code =~ /^W/  # Warning
-                        icon = ':exclamation:' if flake_code =~ /^P|^T/  # Bad practices
+                        icon = ':exclamation:' if flake_code =~ /^P|^T|^S/  # Bad practices
                         comment_body << "- #{icon} Line #{lineno}:#{colno}: **#{flake_code}** *#{flake_message}*\n"
                     end
                 end
