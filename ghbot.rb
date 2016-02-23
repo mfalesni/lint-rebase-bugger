@@ -105,6 +105,7 @@ end
             `git clone -b #{branch} #{clone_url} /tmp/ghbot/clone`
             flakes = {}
             pr_files.each do |file|
+                next unless file =~ /[.]py$/
                 patch = GitDiffParser::Patch.new(file.patch)
                 changed_lines = patch.changed_lines.collect(&:number)
                 flake_result = `cd /tmp/ghbot/clone && flake8 #{flake_params} #{file.filename}`.strip
