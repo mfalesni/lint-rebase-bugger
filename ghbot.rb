@@ -152,8 +152,9 @@ end
                 remove_old_lint_comments client, repo_name, pull_request.number
                 comment_body = "Lint report for commit #{pull_request.head.sha}:\n"
                 flakes.each do |filename, data|
+                    next unless any_lint_issues
                     comment_body << "\n`#{filename}`:\n"
-                    comment_body << "File lint OK :cake: :punch: :cookie:\n" if data.length == 0
+                    comment_body << "- File lint OK :cake: :punch: :cookie:\n" if data.length == 0
                     data.each do |lineno, colno, flake_code, flake_message|
                         icon = ''
                         icon = ':red_circle:' if flake_code =~ /^E/  # Error
