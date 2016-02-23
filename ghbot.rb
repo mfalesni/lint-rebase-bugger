@@ -156,10 +156,10 @@ end
                     comment_body << "\n`#{filename}`:\n"
                     comment_body << "- File lint OK :cake: :punch: :cookie:\n" if data.length == 0
                     data.each do |lineno, colno, flake_code, flake_message|
-                        icon = ''
-                        icon = ':red_circle:' if flake_code =~ /^E/  # Error
-                        icon = ':large_orange_diamond:' if flake_code =~ /^W/  # Warning
-                        icon = ':exclamation:' if flake_code =~ /^P|^T|^S/  # Bad practices
+                        icon = ':red_circle:'
+                        icon = ':bangbang:' if flake_code =~ /^E/  # Error
+                        icon = ':heavy_exclamation_mark:' if flake_code =~ /^W/  # Warning
+                        icon = ':grey_exclamation:' if flake_code =~ /^P|^T|^S/  # Bad practices
                         comment_body << "- #{icon} Line #{lineno}:#{colno}: **#{flake_code}** *#{flake_message}*\n"
                     end
                 end
