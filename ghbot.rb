@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 require "octokit"
 require "yaml"
+require "git_diff_parser"
 
 Octokit.auto_paginate = true
 config = YAML.load_file("ghbot.yaml")
@@ -71,6 +72,7 @@ end
         # some variables
         # We have to retrieve full PR object here
         pull_request = client.pull_request repo_name, pull_request.number
+        pr_files = client.pull_request_files repo_name, pull_request.number
         puts " Processing PR\##{pull_request.number}@#{repo_name} ->"
         # Read labels, names only
         pr_labels = client.labels_for_issue(repo_name, pull_request.number).map { |lbl| lbl[:name] }
@@ -101,8 +103,38 @@ end
             branch = pull_request.head.ref
             `mkdir -p /tmp/ghbot; rm -rf /tmp/ghbot/clone`
             `git clone -b #{branch} #{clone_url} /tmp/ghbot/clone`
-            result = `cd /tmp/ghbot/clone && flake8 #{flake_params} .`
-            if result.strip.empty?
+            flakes = {}
+            pr_files.each do |file|
+                patch = GitDiffParser::Patch.new(file.patch)
+                changed_lines = patch.changed_lines.collect(&:number)
+                flake_result = `cd /tmp/ghbot/clone && flake8 #{flake_params} #{file.filename}`.strip
+                flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
+                    line_match = line.match /^([^:]+):([^:]+):([^:]+):\s+([A-Z][0-9]+)\s+(.*?)$/
+                    next nil if line_match.nil?
+                    lineno = line_match[2].to_i
+                    colno = line_match[3].to_i
+                    flake_code = line_match[4]
+                    flake_message = line_match[5]
+                    if changed_lines.include?(lineno)
+                        # Touched by this PR, let's nag
+                        [lineno, colno, flake_code, flake_message]
+                    else
+                        nil
+                    end
+                end.reject(&:nil?)
+            end
+            any_lint_issues = flakes.values.collect(&:length).sort.uniq.reject {|n| n == 0} .length > 0
+
+            # label
+            if any_lint_issues
+                puts "  flake not ok:"
+                if pr_labels.include? flake_ok
+                    client.remove_label repo_name, pull_request.number, flake_ok
+                end
+                unless pr_labels.include? needs_flake
+                    client.add_labels_to_an_issue repo_name, pull_request.number, [needs_flake]
+                end
+            else
                 # Flake ok
                 puts "  flake ok!"
                 if pr_labels.include?(needs_flake)
@@ -112,26 +144,35 @@ end
                 unless pr_labels.include?(flake_ok)
                     client.add_labels_to_an_issue repo_name, pull_request.number, [flake_ok]
                 end
+            end
 
-                unless linted.include? pull_request.head.sha
-                    puts "Adding lint comment for #{pull_request.head.sha}"
-                    remove_old_lint_comments client, repo_name, pull_request.number
-                    client.add_comment repo_name, pull_request.number, "Lint report for commit #{pull_request.head.sha}:\n:godmode: All seems good! :cake: :punch: :cookie: \n*CFME QE Bot*"
+            # Build the comment
+            unless linted.include? pull_request.head.sha
+                puts "Adding lint comment for #{pull_request.head.sha}"
+                remove_old_lint_comments client, repo_name, pull_request.number
+                comment_body = "Lint report for commit #{pull_request.head.sha}:\n"
+                flakes.each do |filename, data|
+                    comment_body << "\n`#{filename}`:\n"
+                    comment_body << "File lint OK :cake: :punch: :cookie:\n" if data.length == 0
+                    data.each do |lineno, colno, flake_code, flake_message|
+                        icon = ''
+                        icon = ':red_circle:' if flake_code =~ /^E/  # Error
+                        icon = ':large_orange_diamond:' if flake_code =~ /^W/  # Warning
+                        icon = ':exclamation:' if flake_code =~ /^P|^T/  # Bad practices
+                        comment_body << "- #{icon} Line #{lineno}:#{colno}: **#{flake_code}** *#{flake_message}*\n"
+                    end
                 end
-            else
-                puts "  flake not ok:"
-                puts result
-                if pr_labels.include? flake_ok
-                    client.remove_label repo_name, pull_request.number, flake_ok
+                comment_body << "\n"
+                if any_lint_issues
+                    comment_body << "Please, rectify these issues :smirk: .\n"
+                else
+                    comment_body << "Everything seems all right :smile: .\n"
                 end
-                unless pr_labels.include? needs_flake
-                    client.add_labels_to_an_issue repo_name, pull_request.number, [needs_flake]
-                end
-                unless linted.include? pull_request.head.sha
-                    puts "Adding lint comment for #{pull_request.head.sha}"
-                    remove_old_lint_comments client, repo_name, pull_request.number
-                    client.add_comment repo_name, pull_request.number, "Lint report for commit #{pull_request.head.sha}:\n:hurtrealbad: There were some flake issues that need to be resolved in order to merge the pull request:\n```\n#{result.strip}\n```\n:trollface:\n*CFME QE Bot*"
-                end
+                comment_body << "*CFME QE Bot*"
+
+                # Add the comment
+                remove_old_lint_comments client, repo_name, pull_request.number
+                client.add_comment repo_name, pull_request.number, comment_body
             end
         end
         # WIP'ing (ordinary people do not have access to the labels)
