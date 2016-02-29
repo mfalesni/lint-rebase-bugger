@@ -108,21 +108,39 @@ end
                 next unless file =~ /[.]py$/
                 patch = GitDiffParser::Patch.new(file.patch)
                 changed_lines = patch.changed_lines.collect(&:number)
-                flake_result = `cd /tmp/ghbot/clone && flake8 #{flake_params} #{file.filename}`.strip
-                flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
-                    line_match = line.match /^([^:]+):([^:]+):([^:]+):\s+([A-Z][0-9]+)\s+(.*?)$/
-                    next nil if line_match.nil?
-                    lineno = line_match[2].to_i
-                    colno = line_match[3].to_i
-                    flake_code = line_match[4]
-                    flake_message = line_match[5]
-                    if changed_lines.include?(lineno)
-                        # Touched by this PR, let's nag
-                        [lineno, colno, flake_code, flake_message]
-                    else
-                        nil
-                    end
-                end.reject(&:nil?)
+                if file =~ /[.]py$/
+                    flake_result = `cd /tmp/ghbot/clone && flake8 #{flake_params} #{file.filename}`.strip
+                    flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
+                        line_match = line.match /^([^:]+):([^:]+):([^:]+):\s+([A-Z][0-9]+)\s+(.*?)$/
+                        next nil if line_match.nil?
+                        lineno = line_match[2].to_i
+                        colno = line_match[3].to_i
+                        flake_code = line_match[4]
+                        flake_message = line_match[5]
+                        if changed_lines.include?(lineno)
+                            # Touched by this PR, let's nag
+                            [lineno, colno, flake_code, flake_message]
+                        else
+                            nil
+                        end
+                    end.reject(&:nil?)
+                elsif file =~ /[.]rst$/
+                    flake_result = `cd /tmp/ghbot/clone && rstcheck #{file.filename} 2>&1`.strip
+                    flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
+                        line_match = line.match(/^([^:]+):([^:]+):\s*\(([^)]+)\)\s*(.*?)$/)
+                        next nil if line_match.nil?
+                        lineno = line_match[2].to_i
+                        colno = nil
+                        flake_code = line_match[3]
+                        flake_message = line_match[4]
+                        if changed_lines.include?(lineno)
+                            # Touched by this PR, let's nag
+                            [lineno, colno, flake_code, flake_message]
+                        else
+                            nil
+                        end
+                    end.reject(&:nil?)
+                end
             end
             any_lint_issues = flakes.values.collect(&:length).sort.uniq.reject {|n| n == 0} .length > 0
 
@@ -158,10 +176,14 @@ end
                     comment_body << "- File lint OK :cake: :punch: :cookie:\n" if data.length == 0
                     data.each do |lineno, colno, flake_code, flake_message|
                         icon = ':red_circle:'
-                        icon = ':bangbang:' if flake_code =~ /^E/  # Error
-                        icon = ':heavy_exclamation_mark:' if flake_code =~ /^W/  # Warning
-                        icon = ':grey_exclamation:' if flake_code =~ /^P|^T|^S/  # Bad practices
-                        comment_body << "- #{icon} Line #{lineno}:#{colno}: **#{flake_code}** *#{flake_message}*\n"
+                        icon = ':bangbang:' if flake_code =~ /^E[0-9]|^SEVERE/  # Error
+                        icon = ':heavy_exclamation_mark:' if flake_code =~ /^W[0-9]|^ERROR/  # Warning
+                        icon = ':grey_exclamation:' if flake_code =~ /^P[0-9]|^T[0-9]|^S[0-9]|^INFO/  # Bad practices
+                        if colno.nil?
+                            comment_body << "- #{icon} Line #{lineno}: **#{flake_code}** *#{flake_message}*\n"
+                        else
+                            comment_body << "- #{icon} Line #{lineno}:#{colno}: **#{flake_code}** *#{flake_message}*\n"
+                        end
                     end
                 end
                 comment_body << "\n"
