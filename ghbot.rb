@@ -105,10 +105,9 @@ end
             `git clone -b #{branch} #{clone_url} /tmp/ghbot/clone`
             flakes = {}
             pr_files.each do |file|
-                next unless file =~ /[.]py$/
                 patch = GitDiffParser::Patch.new(file.patch)
                 changed_lines = patch.changed_lines.collect(&:number)
-                if file =~ /[.]py$/
+                if file.filename =~ /[.]py$/
                     flake_result = `cd /tmp/ghbot/clone && flake8 #{flake_params} #{file.filename}`.strip
                     flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
                         line_match = line.match /^([^:]+):([^:]+):([^:]+):\s+([A-Z][0-9]+)\s+(.*?)$/
@@ -124,7 +123,7 @@ end
                             nil
                         end
                     end.reject(&:nil?)
-                elsif file =~ /[.]rst$/
+                elsif file.filename =~ /[.]rst$/
                     flake_result = `cd /tmp/ghbot/clone && rstcheck #{file.filename} 2>&1`.strip
                     flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
                         line_match = line.match(/^([^:]+):([^:]+):\s*\(([^)]+)\)\s*(.*?)$/)
@@ -175,9 +174,10 @@ end
                     comment_body << "\n`#{filename}`:\n"
                     comment_body << "- File lint OK :cake: :punch: :cookie:\n" if data.length == 0
                     data.each do |lineno, colno, flake_code, flake_message|
-                        icon = ':red_circle:'
+                        icon = ':red_circle:'  # If nothing else applies
                         icon = ':bangbang:' if flake_code =~ /^E[0-9]|^SEVERE/  # Error
                         icon = ':heavy_exclamation_mark:' if flake_code =~ /^W[0-9]|^ERROR/  # Warning
+                        icon = ':warning:' if flake_code =~ /^WARNING/  # Warning of rstcheck
                         icon = ':grey_exclamation:' if flake_code =~ /^P[0-9]|^T[0-9]|^S[0-9]|^INFO/  # Bad practices
                         if colno.nil?
                             comment_body << "- #{icon} Line #{lineno}: **#{flake_code}** *#{flake_message}*\n"
