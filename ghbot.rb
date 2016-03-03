@@ -185,8 +185,8 @@ end
                 comment_body = "Lint report for commit #{pull_request.head.sha}:\n"
                 flakes.each do |filename, data|
                     next unless any_lint_issues
+                    next if data.length == 0
                     comment_body << "\n`#{filename}`:\n"
-                    comment_body << "- File lint OK :cake: :punch: :cookie:\n" if data.length == 0
                     data.each do |lineno, colno, flake_code, flake_message|
                         icon = ':red_circle:'  # If nothing else applies
                         icon = ':bangbang:' if flake_code =~ /^E[0-9]|^SEVERE/  # Error
