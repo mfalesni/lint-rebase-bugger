@@ -129,6 +129,18 @@ end
                                     force_add = true
                                 end
                             end
+                        elsif flake_code == 'E303'
+                            number_match = flake_message.match /^too many blank lines\s+\((\d+)\)$/
+                            unless number_match.nil?
+                                line_count = number_match[1].to_i
+                                # Now get the lines that are the many blank lines. An array of ints
+                                line_candidates = ((lineno - line_count)..lineno).to_a
+                                # Now let's try to find whether any of the blank lines is in the changed lines
+                                if line_candidates.select {|l_no| changed_lines.include?(l_no) } .size > 0
+                                    # Yes it is, nag the person.
+                                    force_add = true
+                                end
+                            end
                         end
                         if changed_lines.include?(lineno) || force_add
                             # Touched by this PR, let's nag
