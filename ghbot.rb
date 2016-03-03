@@ -107,6 +107,7 @@ end
             pr_files.each do |file|
                 patch = GitDiffParser::Patch.new(file.patch)
                 changed_lines = patch.changed_lines.collect(&:number)
+                removed_lines = file.patch.split(/\n/).select {|line| line =~ /^-/} .collect { |line| line.gsub(/^-/, '')}
                 if file.filename =~ /[.]py$/
                     flake_result = `cd /tmp/ghbot/clone && flake8 #{flake_params} #{file.filename}`.strip
                     flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
@@ -116,7 +117,20 @@ end
                         colno = line_match[3].to_i
                         flake_code = line_match[4]
                         flake_message = line_match[5]
-                        if changed_lines.include?(lineno)
+                        force_add = false
+                        if flake_code == 'F401'
+                            # This is an unused import, this needs cross-matching, otherwise it will get filtered out
+                            import_match = flake_message.match /^'([^']+)' imported but unused$/
+                            unless import_match.nil?
+                                matched_import = import_match[1]
+                                if removed_lines.select {|line| line.match(/\b#{matched_import}\b/)} .size > 0
+                                    # This proves that the unused import can be caused by this PR
+                                    # because the name of the import is present in the removed lines
+                                    force_add = true
+                                end
+                            end
+                        end
+                        if changed_lines.include?(lineno) || force_add
                             # Touched by this PR, let's nag
                             [lineno, colno, flake_code, flake_message]
                         else
