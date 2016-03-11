@@ -107,7 +107,12 @@ end
             pr_files.each do |file|
                 patch = GitDiffParser::Patch.new(file.patch)
                 changed_lines = patch.changed_lines.collect(&:number)
-                removed_lines = file.patch.split(/\n/).select {|line| line =~ /^-/} .collect { |line| line.gsub(/^-/, '')}
+                begin
+                    removed_lines = file.patch.split(/\n/).select {|line| line =~ /^-/} .collect { |line| line.gsub(/^-/, '')}
+                rescue NoMethodError
+                    next  # No patch, no changes. Ignore that.
+                end
+                next unless system("cd /tmp/ghbot/clone && [ -e #{file.filename} ]")  # bash ftw
                 if file.filename =~ /[.]py$/
                     flake_result = `cd /tmp/ghbot/clone && flake8 #{flake_params} #{file.filename}`.strip
                     flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
