@@ -54,6 +54,8 @@ end
     doc_label = repo_data["doc"]
     wip_label = repo_data["wip"]
     wiptest_label = repo_data["wiptest"]
+    review_ok = repo_data["review_ok"]
+    review_notok = repo_data["review_notok"]
     flake = repo_data["flake"]
     # Exctract data for flaking
     unless flake.nil?
@@ -228,6 +230,19 @@ end
                 # Add the comment
                 remove_old_lint_comments client, repo_name, pull_request.number
                 client.add_comment repo_name, pull_request.number, comment_body
+
+                # Remove eventual review labels
+                unless review_ok.nil?
+                    if pr_labels.include?(review_ok)
+                        client.remove_label repo_name, pull_request.number, review_ok
+                    end
+                end
+
+                unless review_notok.nil?
+                    if pr_labels.include?(review_ok) && (! any_lint_issues)
+                        client.remove_label repo_name, pull_request.number, review_notok
+                    end
+                end
             end
         end
         # WIP'ing (ordinary people do not have access to the labels)
