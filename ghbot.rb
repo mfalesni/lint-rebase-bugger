@@ -226,7 +226,7 @@ end
                 if any_lint_issues
                     if lint_error_count >= 10
                         comment_body << "![Whoa](http://i.giphy.com/FC4WzgUnsT57i.gif)\n"
-                        comment_body << "Whoa :rage4: ! That is a lot of errors. Please go fix them :point_up:"
+                        comment_body << "Whoa :rage4: ! That is a lot of errors. Please go fix them :point_up: \n"
                     else
                         comment_body << "Please, rectify these issues :smirk: .\n"
                     end
