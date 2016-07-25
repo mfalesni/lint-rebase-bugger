@@ -106,6 +106,7 @@ end
             `mkdir -p /tmp/ghbot; rm -rf /tmp/ghbot/clone`
             `git clone -b #{branch} #{clone_url} /tmp/ghbot/clone`
             flakes = {}
+            lint_error_count = 0
             pr_files.each do |file|
                 patch = GitDiffParser::Patch.new(file.patch)
                 changed_lines = patch.changed_lines.collect(&:number)
@@ -151,6 +152,7 @@ end
                         end
                         if changed_lines.include?(lineno) || force_add
                             # Touched by this PR, let's nag
+                            lint_error_count = lint_error_count + 1
                             [lineno, colno, flake_code, flake_message]
                         else
                             nil
@@ -167,6 +169,7 @@ end
                         flake_message = line_match[4]
                         if changed_lines.include?(lineno)
                             # Touched by this PR, let's nag
+                            lint_error_count = lint_error_count + 1
                             [lineno, colno, flake_code, flake_message]
                         else
                             nil
@@ -221,7 +224,12 @@ end
                 end
                 comment_body << "\n"
                 if any_lint_issues
-                    comment_body << "Please, rectify these issues :smirk: .\n"
+                    if lint_error_count >= 10
+                        comment_body << "![Whoa](http://i.giphy.com/FC4WzgUnsT57i.gif)\n"
+                        comment_body << "Whoa :rage4: ! That is a lot of errors. Please go fix them :point_up:"
+                    else
+                        comment_body << "Please, rectify these issues :smirk: .\n"
+                    end
                 else
                     comment_body << "Everything seems all right :smile: .\n"
                 end
