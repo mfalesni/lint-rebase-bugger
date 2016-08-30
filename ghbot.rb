@@ -261,9 +261,9 @@ end
                     end
                 end
                 if was_commit_issue
-                    comment_body << "**No commit flaws detected**.\n"
-                else
                     comment_body << "**Seems like your git configuration is incorrect** :rage4:.\n"
+                else
+                    comment_body << "**No commit flaws detected**.\n"
                 end
                 comment_body << "\n*CFME QE Bot*"
 
