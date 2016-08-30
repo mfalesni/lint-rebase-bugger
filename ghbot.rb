@@ -210,7 +210,7 @@ end
 
                 # Check if commit author is root or the email starts with root or is wrong (CSB)
                 commit_issues[sha] << 'Commit author is root (did you create your git identity?)' if commit.author.name == 'root'
-                commit_issues[sha] << "Commit author email starts with root (#{commit.author.email})" if commit.author.email =~ /^root@/
+                commit_issues[sha] << "Commit author email starts with root" if commit.author.email =~ /^root@/
                 commit_issues[sha] << "Commit author email is wrong (ends with .csb)" if commit.author.email =~ /\.csb$/
 
                 # Check if merge commit (crude but well ...)
@@ -261,7 +261,7 @@ end
                     end
                 end
                 if was_commit_issue
-                    comment_body << "**Seems like your git configuration is incorrect** :rage4:.\n"
+                    comment_body << "**The PR might not be acceptable in this state** :rage4:.\n"
                 else
                     comment_body << "**No commit flaws detected**.\n"
                 end
