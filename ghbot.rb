@@ -260,8 +260,12 @@ end
                         comment_body << "  * #{sha_issue}\n"
                     end
                 end
-                comment_body << "**No commit flaws detected**.\n" unless was_commit_issue
-                comment_body << "*CFME QE Bot*"
+                if was_commit_issue
+                    comment_body << "**No commit flaws detected**.\n"
+                else
+                    comment_body << "**Seems like your git configuration is incorrect** :rage4:.\n"
+                end
+                comment_body << "\n*CFME QE Bot*"
 
                 # Add the comment
                 remove_old_lint_comments client, repo_name, pull_request.number
