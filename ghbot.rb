@@ -200,6 +200,23 @@ end
                 end
             end
 
+            # Check commits
+            commits = client.pull_request_commits(repo_name, pull_request.number)
+            commit_issues = {}
+            commits.each do |commit|
+                sha = commit.sha
+                commit_issues[sha] = []
+                commit = commit.commit
+
+                # Check if commit author is root or the email starts with root or is wrong (CSB)
+                commit_issues[sha] << 'Commit author is root (did you create your git identity?)' if commit.author.name == 'root'
+                commit_issues[sha] << "Commit author email starts with root (#{commit.author.email})" if commit.author.email =~ /^root@/
+                commit_issues[sha] << "Commit author email is wrong (ends with .csb)" if commit.author.email =~ /\.csb$/
+
+                # Check if merge commit (crude but well ...)
+                commit_issues[sha] << 'Merge commit detected!!! :bangbang:' if commit.message =~ /^Merge branch '/
+            end
+
             # Build the comment
             unless linted.include? pull_request.head.sha
                 puts "Adding lint comment for #{pull_request.head.sha}"
@@ -231,8 +248,19 @@ end
                         comment_body << "Please, rectify these issues :smirk: .\n"
                     end
                 else
-                    comment_body << "Everything seems all right :smile: .\n"
+                    comment_body << "Everything seems all right from lint perspective :smile: .\n"
                 end
+                comment_body << "\nCommit inspection report:\n"
+                was_commit_issue = false
+                commit_issues.each do |sha, sha_issues|
+                    next if sha_issues.empty?
+                    was_commit_issue = true
+                    comment_body << "* #{sha}\n"
+                    sha_issues.each do |sha_issue|
+                        comment_body << "  * #{sha_issue}\n"
+                    end
+                end
+                comment_body << "**No commit flaws detected**.\n" unless was_commit_issue
                 comment_body << "*CFME QE Bot*"
 
                 # Add the comment
