@@ -203,6 +203,8 @@ end
             # Check commits
             commits = client.pull_request_commits(repo_name, pull_request.number)
             commit_issues = {}
+            was_merge_commit = false
+            uses_csb = false
             commits.each do |commit|
                 sha = commit.sha
                 commit_issues[sha] = []
@@ -211,10 +213,16 @@ end
                 # Check if commit author is root or the email starts with root or is wrong (CSB)
                 commit_issues[sha] << 'Commit author is root (did you create your git identity?)' if commit.author.name == 'root'
                 commit_issues[sha] << "Commit author email starts with root" if commit.author.email =~ /^root@/
-                commit_issues[sha] << "Commit author email is wrong (ends with .csb)" if commit.author.email =~ /\.csb$/
+                if commit.author.email =~ /\.csb$/
+                    commit_issues[sha] << "Commit author email is wrong (ends with .csb)"
+                    uses_csb = true
+                end
 
                 # Check if merge commit (crude but well ...)
-                commit_issues[sha] << 'Merge commit detected!!! :bangbang:' if commit.message =~ /^Merge branch '/
+                if commit.message =~ /^Merge branch '/
+                    commit_issues[sha] << 'Merge commit detected!!! :bangbang:'
+                    was_merge_commit = true
+                end
             end
 
             # Build the comment
@@ -261,9 +269,14 @@ end
                     end
                 end
                 if was_commit_issue
-                    comment_body << "**The PR might not be acceptable in this state** :rage4:.\n"
+                    comment_body << "\n**The PR might not be acceptable in this state** :rage4:.\n"
                 else
-                    comment_body << "**No commit flaws detected**.\n"
+                    comment_body << "\n**No commit flaws detected**.\n"
+                end
+
+                multiple_commits = commits.size > 1
+                if was_merge_commit
+                    comment_body << "There is a merge commit in the branch which can cause some problems during squashing. Please take EXTRA care when squashing!\n"
                 end
                 comment_body << "\n*CFME QE Bot*"
 
