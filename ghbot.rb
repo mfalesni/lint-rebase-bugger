@@ -7,6 +7,8 @@ Octokit.auto_paginate = true
 config = YAML.load_file("ghbot.yaml")
 client = Octokit::Client.new(config["credentials"] || {})
 
+bot_user_name = config['credentials'][:login]
+
 def bot_comments client, repo_name, pr
     client.issue_comments(repo_name, pr).reject {|c| c[:body].strip.match(/[*]CFME QE Bot[*]$/).nil? }
 end
@@ -28,6 +30,23 @@ def remove_old_landscape_comments client, repo_name, pr
     old_landscape_comments(client, repo_name, pr).each do |comment|
         client.delete_comment repo_name, comment.id
     end.length
+end
+
+def get_all_merge_request_comments client, repo_name, pr, bot_user_name
+    pull_request = client.pull_request repo_name, pr
+    client.issue_comments(repo_name, pr).select {|c| c[:user][:login] == pull_request.user.login} .select {|c|
+        c.body.strip.match(/^\s*@#{bot_user_name}\s+please\s+merge\s*$/i)}
+end
+
+def get_all_responded_comment_ids client, repo_name, pr, bot_user_name
+    client.issue_comments(repo_name, pr).select {|c| c[:user][:login] == bot_user_name} .map {|c|
+        c.body.strip.match(/^\s*Response to comment #(\d+):/)} .reject(&:nil?) .map {|m| m[1].to_i }
+end
+
+def pr_auto_mergeable client, repo_name, pr, bot_user_name
+    pull_request = client.pull_request repo_name, pr
+    client.issue_comments(repo_name, pr).select {|c| c[:user][:login] == bot_user_name} .map {|c|
+        c.body.strip.match(/<mergeable\/>/) && c.body.strip.match(/^Lint report for commit #{pull_request.head.sha}:/)} .reject(&:nil?) .size > 0
 end
 
 def get_lint_comments_hashes client, repo_name, pr
@@ -276,7 +295,13 @@ end
 
                 multiple_commits = commits.size > 1
                 if was_merge_commit
-                    comment_body << "There is a merge commit in the branch which can cause some problems during squashing. Please take EXTRA care when squashing!\n"
+                    comment_body << "There is a merge commit in the branch which can cause some problems during squashing. Please take **EXTRA care** when squashing!\n"
+                end
+                if multiple_commits
+                    comment_body << "You have multiple commits in the PR. When you want your PR to be merged, please squash them. Do not squash them when working on the pull request as this allows to see the progress!\n"
+                end
+                unless was_commit_issue || was_merge_commit || any_lint_issues || multiple_commits
+                    comment_body << "<mergeable/>\n"
                 end
                 comment_body << "\n*CFME QE Bot*"
 
@@ -358,5 +383,39 @@ end
         # Remove old landscape comments
         n_comments = remove_old_landscape_comments client, repo_name, pull_request.number
         puts "Removed #{n_comments} landscape.io comments"
+
+        # Handle merge requests
+        requests = get_all_merge_request_comments client, repo_name, pull_request.number, bot_user_name
+        responded = get_all_responded_comment_ids client, repo_name, pull_request.number, bot_user_name
+        requests.each do |request|
+            next if responded.include? request.id
+            response = "Response to comment ##{request.id}:\n\n"
+            if pr_auto_mergeable(client, repo_name, pull_request.number, bot_user_name)
+                if client.pull_merged?(repo_name, pull_request.number)
+                    response << "The PR is already merged.\n"
+                else
+                    allow_merge = true
+                    file_patterns = config['repositories'].fetch(repo_name, {}).fetch('rbac', {}).fetch(pull_request.user.login, []) .map {|fp| Regexp.new fp }
+                    client.pull_request_files(repo_name, pull_request.number).map(&:filename).map do |filename|
+                        if file_patterns.collect {|fp| fp.match(filename) } .reject(&:nil?) .empty?
+                            allow_merge = false
+                            response << "The file #{filename} is out of your allowed scope.\n"
+                        end
+                    end
+
+                    if allow_merge
+                        response << "It seems like all the basic requirements were met, I have therefore merged your PR.\n"
+                        client.merge_pull_request(repo_name, pull_request.number, "Automatically merged by the bot.")
+                    else
+                        response << "Based on the PR analysis I cannot allow you to merge this PR on your own. Contact the CFME reviewers.\n"
+                    end
+                end
+
+            else
+                response << "I am sorry but I cannot merge this PR for you. Please, address the issues pointed out in the lint comment and then try again."
+            end
+
+            client.add_comment repo_name, pull_request.number, response
+        end
     end
 end
