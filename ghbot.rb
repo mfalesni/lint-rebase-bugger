@@ -238,7 +238,7 @@ end
                 end
 
                 # Check if merge commit (crude but well ...)
-                if commit.message =~ /^Merge branch '/
+                if commit.message =~ /^Merge\b.*?\bbranch '/
                     commit_issues[sha] << 'Merge commit detected!!! :bangbang:'
                     was_merge_commit = true
                 end
