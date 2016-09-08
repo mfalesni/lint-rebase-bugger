@@ -405,9 +405,7 @@ end
 
                     if allow_merge
                         response << "It seems like all the basic requirements were met, I have therefore merged your PR.\n"
-                        # TODO: Uncomment when we are sure.
-                        # client.merge_pull_request(repo_name, pull_request.number, "Automatically merged by the bot.")
-                        response << "*(beta testing, no merging actually happens, we are testing this functionality, so please contact reviewers to merge this)*\n"
+                        client.merge_pull_request(repo_name, pull_request.number, "Automatically merged by the bot.")
                     else
                         response << "Based on the PR analysis I cannot allow you to merge this PR on your own. Contact the CFME reviewers.\n"
                     end
