@@ -268,16 +268,19 @@ end
                 end
                 comment_body << "\n"
                 if any_lint_issues
-                    if lint_error_count >= 10
-                        comment_body << "![Whoa](http://i.giphy.com/FC4WzgUnsT57i.gif)\n"
-                        comment_body << "Whoa :rage4: ! That is a lot of errors. Please go fix them :point_up: \n"
+                    if lint_error_count >= 5
+                        comment_body << "![Hmmm](http://vignette4.wikia.nocookie.net/glee/images/4/49/Tarsier.gif/revision/latest?cb=20130125015754)\n"
+                        comment_body << ":frowning: You might like to check the lint of your code :point_up: \n"
+                    elsif lint_error_count >= 10
+                        comment_body << "![oops](http://i.giphy.com/HhTXt43pk1I1W.gif)\n"
+                        comment_body << ":scream: Thant is a lot of errors. Is your editor set up correctly? :point_up: \n"
                     else
                         comment_body << "Please, rectify these issues :smirk: .\n"
                     end
                 else
-                    comment_body << "Everything seems all right from lint perspective :smile: .\n"
+                    comment_body << "Lint OK! :cake: :punch: :cookie: .\n"
                 end
-                comment_body << "\nCommit inspection report:\n"
+                comment_body << "\n"
                 was_commit_issue = false
                 commit_issues.each do |sha, sha_issues|
                     next if sha_issues.empty?
@@ -293,14 +296,10 @@ end
                     comment_body << "\n**No commit flaws detected**.\n"
                 end
 
-                multiple_commits = commits.size > 1
                 if was_merge_commit
-                    comment_body << "There is a merge commit in the branch which can cause some problems during squashing. Please take **EXTRA care** when squashing!\n"
+                    comment_body << "There is a merge commit in the branch which we do not like in PRs so please, get rid of it.\n"
                 end
-                if multiple_commits
-                    comment_body << "You have multiple commits in the PR. When you want your PR to be merged, please squash them. Do not squash them when working on the pull request as this allows to see the progress!\n"
-                end
-                unless was_commit_issue || was_merge_commit || any_lint_issues || multiple_commits
+                unless was_commit_issue || was_merge_commit || any_lint_issues
                     comment_body << "<mergeable/>\n"
                 end
                 comment_body << "\n*CFME QE Bot*"
