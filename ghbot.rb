@@ -67,7 +67,7 @@ def has_req_comment client, repo_name, pr
 end
 
 def is_commit_linted? client, repo_name, sha, context
-    client.statuses('RedHatQE/cfme_tests', 'bf92c3ad0763ab1cf075ea838e09a5bfa024af16').select {|s| s.context == context} .size > 0
+    client.statuses(repo_name, sha).select {|s| s.context == context} .size > 0
 end
 
 (config["repositories"] || {}).each do |repo_name, repo_data|
