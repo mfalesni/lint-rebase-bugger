@@ -8,6 +8,7 @@ config = YAML.load_file("ghbot.yaml")
 client = Octokit::Client.new(config["credentials"] || {})
 
 bot_user_name = config['credentials'][:login]
+lint_status = config['lint_status'] || 'code/lint'
 
 def bot_comments client, repo_name, pr
     client.issue_comments(repo_name, pr).reject {|c| c[:body].strip.match(/[*]CFME QE Bot[*]$/).nil? }
@@ -65,6 +66,10 @@ def has_req_comment client, repo_name, pr
     (bot_comments(client, repo_name, pr).map {|c| c[:body].strip.match(/^Requirements have changed/)} .reject {|h| h.nil?} .length) > 0
 end
 
+def is_commit_linted? client, repo_name, sha, context
+    client.statuses('RedHatQE/cfme_tests', 'bf92c3ad0763ab1cf075ea838e09a5bfa024af16').select {|s| s.context == context} .size > 0
+end
+
 (config["repositories"] || {}).each do |repo_name, repo_data|
     puts "Processing repository #{repo_name} ->"
     repo = client.repository repo_name
@@ -119,7 +124,7 @@ end
         end
         # Flaking
         linted = get_lint_comments_hashes client, repo_name, pull_request.number
-        if flake && (! linted.include? pull_request.head.sha)
+        if flake && (! linted.include? pull_request.head.sha) && (! is_commit_linted?(client, repo_name, pull_request.head.sha, lint_status))
             clone_url = pull_request.head.repo.git_url
             branch = pull_request.head.ref
             `mkdir -p /tmp/ghbot; rm -rf /tmp/ghbot/clone`
@@ -306,7 +311,12 @@ end
 
                 # Add the comment
                 remove_old_lint_comments client, repo_name, pull_request.number
-                client.add_comment repo_name, pull_request.number, comment_body
+                if any_lint_issues || was_merge_commit || was_commit_issue
+                    client.add_comment repo_name, pull_request.number, comment_body
+                    client.create_status(repo_name, pull_request.head.sha, 'failure', :context => lint_status, :description => 'The PR failed the lint check.')
+                else
+                    client.create_status(repo_name, pull_request.head.sha, 'success', :context => lint_status, :description => 'Lint check succeeded.')
+                end
 
                 # Remove eventual review labels
                 unless review_ok.nil?
