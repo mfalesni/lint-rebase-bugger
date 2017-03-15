@@ -70,6 +70,15 @@ def is_commit_linted? client, repo_name, sha, context
     client.statuses(repo_name, sha).select {|s| s.context == context} .size > 0
 end
 
+def remove_rfr_if_present client, repo_name, pr
+    pull_request = client.pull_request(repo_name, pr)
+    return if pull_request.title.include?('[WIP]') || pull_request.title.include?('[WIPTEST]')
+    return unless pull_request.title.include?('[RFR]')
+    # Replace RFR with WIP
+    pr_title_new = pull_request.title.gsub(/\[RFR\]/, '[WIP]')
+    client.update_issue(repo_name, pr, pr_title_new)
+end
+
 (config["repositories"] || {}).each do |repo_name, repo_data|
     puts "Processing repository #{repo_name} ->"
     repo = client.repository repo_name
@@ -113,6 +122,7 @@ end
                     remove_old_rebase_comments client, repo_name, pull_request.number
                 end
             else
+                remove_rfr_if_present(client, repo_name, pull_request.number)
                 puts "  #{pull_request.number} is not mergeable"
                 unless pr_labels.include? needs_rebase_label
                     puts "   add '#{needs_rebase_label}' from #{pull_request.number}"
@@ -205,6 +215,7 @@ end
 
             # label
             if any_lint_issues
+                remove_rfr_if_present(client, repo_name, pull_request.number)
                 puts "  flake not ok:"
                 if pr_labels.include? flake_ok
                     client.remove_label repo_name, pull_request.number, flake_ok
