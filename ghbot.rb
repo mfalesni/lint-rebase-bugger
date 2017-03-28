@@ -76,7 +76,7 @@ def remove_rfr_if_present client, repo_name, pr
     return unless pull_request.title.include?('[RFR]')
     # Replace RFR with WIP
     pr_title_new = pull_request.title.gsub(/\[RFR\]/, '[WIP]')
-    client.update_issue(repo_name, pr, pr_title_new)
+    client.update_issue(repo_name, pr, :title => pr_title_new)
 end
 
 (config["repositories"] || {}).each do |repo_name, repo_data|
