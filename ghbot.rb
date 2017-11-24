@@ -285,11 +285,8 @@ end
                 comment_body << "\n"
                 if any_lint_issues
                     if lint_error_count >= 5
-                        comment_body << "![Hmmm](http://vignette4.wikia.nocookie.net/glee/images/4/49/Tarsier.gif/revision/latest?cb=20130125015754)\n"
-                        comment_body << ":frowning: You might like to check the lint of your code :point_up: \n"
-                    elsif lint_error_count >= 10
-                        comment_body << "![oops](http://i.giphy.com/HhTXt43pk1I1W.gif)\n"
-                        comment_body << ":scream: Thant is a lot of errors. Is your editor set up correctly? :point_up: \n"
+                        comment_body << "![Hmmm](https://i.imgur.com/q3iCWqE.gif)\n"
+                        comment_body << ":scream: You might like to check the lint of your code :point_up: \n"
                     else
                         comment_body << "Please, rectify these issues :smirk: .\n"
                     end
