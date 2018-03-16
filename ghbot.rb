@@ -146,6 +146,7 @@ end
                 changed_lines = patch.changed_lines.collect(&:number)
                 begin
                     removed_lines = file.patch.split(/\n/).select {|line| line =~ /^-/} .collect { |line| line.gsub(/^-/, '')}
+                    added_lines = file.patch.split(/\n/).select {|line| line =~ /^\+/} .collect { |line| line.gsub(/^\+/, '')}
                 rescue NoMethodError
                     next  # No patch, no changes. Ignore that.
                 end
@@ -192,6 +193,14 @@ end
                             nil
                         end
                     end.reject(&:nil?)
+                    
+                    # Run a check for iteritems
+                    num_iteritems = added_lines.select {|line| line =~ /\.iteritems/ } .length
+                    if num_iteritems > 0
+                        # A custom flake
+                        flakes[file.filename] << [0, 0, 'EPY3', 'Usage of .iteritems']
+                    end
+
                 elsif file.filename =~ /[.]rst$/
                     flake_result = `cd /tmp/ghbot/clone && rstcheck #{file.filename} 2>&1`.strip
                     flakes[file.filename] = flake_result.split(/(\n)/).collect do |line|
