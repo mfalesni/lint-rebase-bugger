@@ -18,7 +18,7 @@ ruby -e "require 'git_diff_parser'" >/dev/null 2>&1 || {
 
 if [ ! -e ./ghbot_ve_py3/bin/activate ] ;
 then
-    virtualenv ghbot_ve_py3
+    python3 -m venv ghbot_ve_py3
     . ./ghbot_ve_py3/bin/activate
     pip install flake8
 else
