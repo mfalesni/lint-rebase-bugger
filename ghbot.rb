@@ -79,6 +79,16 @@ def remove_rfr_if_present client, repo_name, pr
     client.update_issue(repo_name, pr, :title => pr_title_new)
 end
 
+def remove_wiptest_if_present client, repo_name, pr
+    pull_request = client.pull_request(repo_name, pr)
+    return if pull_request.title.include?('[WIP]')
+    return unless pull_request.title.include?('[WIPTEST]')
+    # Replace WIPTEST with WIP
+    pr_title_new = pull_request.title.gsub(/\[WIPTEST\]/, '[WIP]')
+    client.update_issue(repo_name, pr, :title => pr_title_new)
+end
+
+
 (config["repositories"] || {}).each do |repo_name, repo_data|
     puts "Processing repository #{repo_name} ->"
     repo = client.repository repo_name
@@ -123,6 +133,7 @@ end
                 end
             else
                 remove_rfr_if_present(client, repo_name, pull_request.number)
+                remove_wiptest_if_present(client, repo_name, pull_request.number)
                 puts "  #{pull_request.number} is not mergeable"
                 unless pr_labels.include? needs_rebase_label
                     puts "   add '#{needs_rebase_label}' from #{pull_request.number}"
